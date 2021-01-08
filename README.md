@@ -13,4 +13,4 @@ cd $HOME
 
 set GO111MODULE=off
 
-gomobile bind -o pubsub-1.0.1.aar -v -androidapi=24 -target=android github.com/remmerw/pubsub
+gomobile bind -o pubsub-1.0.2.aar -v -androidapi=26 -target=android/arm64 github.com/remmerw/pubsub
