@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"github.com/dgraph-io/badger/v2"
-	"github.com/dgraph-io/badger/v2/options"
 	"os"
 	"path/filepath"
 )
@@ -20,8 +19,7 @@ func Create(path string) (*Datastore, error) {
 
 	defaultOptions := badger.DefaultOptions("")
 
-	defaultOptions = defaultOptions.WithValueLogLoadingMode(options.FileIO)
-	defaultOptions = defaultOptions.WithTableLoadingMode(options.FileIO)
+	defaultOptions = defaultOptions.WithInMemory(true)
 	defaultOptions = defaultOptions.WithValueThreshold(1024)
 	defaultOptions = defaultOptions.WithMaxTableSize(8 << 20)
 
