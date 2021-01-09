@@ -102,7 +102,7 @@ func daemon(n *Node, ctx context.Context) error {
 		n.Routing, err = dht.New(
 			ctx, host, dht.Concurrency(10),
 			dht.Mode(dht.ModeClient),
-			dht.Datastore(n.DataStore))
+			dht.DisableAutoRefresh())
 
 		n.PubSub, _ = GossipSub(ctx, host, n.Routing)
 
