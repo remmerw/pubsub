@@ -7,7 +7,6 @@ import (
 	"github.com/ipfs/go-cidutil/cidenc"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
-	dag "github.com/ipfs/go-merkledag"
 	ipfspath "github.com/ipfs/go-path"
 	"github.com/ipfs/go-path/resolver"
 	ft "github.com/ipfs/go-unixfs"
@@ -17,6 +16,10 @@ import (
 	"sync"
 	"time"
 )
+
+type LsClose interface {
+	Close() bool
+}
 
 type LsInfoClose interface {
 	LsInfo(NAME string, HASH string, SIZE int, TYPE int32)
@@ -44,7 +47,35 @@ type DirEntry struct {
 	Err error
 }
 
-func (n *Node) Ls(paths string, info LsInfoClose) error {
+func (n *Node) Resolve(paths string, close LsClose) string {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var err error
+
+	go func(stream LsClose) {
+		for {
+			if ctx.Err() != nil {
+				break
+			}
+			if stream.Close() {
+				cancel()
+				break
+			}
+			time.Sleep(time.Millisecond * 500)
+		}
+	}(close)
+
+	dagService := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, n.DagService))
+
+	dagnode, err := n.ResolveNode(ctx, dagService, path.New(paths))
+	if err != nil {
+		return ""
+	}
+	return dagnode.Cid().String()
+}
+
+func (n *Node) Ls(paths string, info LsInfoClose, resolveChildren bool) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -66,7 +97,7 @@ func (n *Node) Ls(paths string, info LsInfoClose) error {
 		}
 	}(info)
 
-	pchan, err := n.Lss(ctx, path.New(paths), true)
+	pchan, err := n.Lss(ctx, path.New(paths), resolveChildren)
 
 	if err != nil {
 		return err
@@ -90,7 +121,7 @@ func (n *Node) Ls(paths string, info LsInfoClose) error {
 
 func (n *Node) Lss(ctx context.Context, p path.Path, resolveChildren bool) (<-chan DirEntry, error) {
 
-	dagService := dag.NewReadOnlyDagService(dag.NewSession(ctx, n.DagService))
+	dagService := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, n.DagService))
 
 	dagnode, err := n.ResolveNode(ctx, dagService, p)
 	if err != nil {
@@ -206,7 +237,6 @@ func (n *Node) processLink(ctx context.Context, dag ipld.DAGService, linkres ft.
 			lnk.Err = err
 			break
 		}
-
 		if pn, ok := linkNode.(*merkledag.ProtoNode); ok {
 			d, err := ft.FSNodeFromBytes(pn.Data())
 			if err != nil {
@@ -223,6 +253,7 @@ func (n *Node) processLink(ctx context.Context, dag ipld.DAGService, linkres ft.
 			}
 			lnk.Size = d.FileSize()
 		}
+
 	}
 
 	return lnk

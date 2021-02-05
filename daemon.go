@@ -74,10 +74,8 @@ func daemon(n *Node, ctx context.Context) error {
 	// hash security
 	bs := blockstore.NewBlockstore(n.DataStore)
 	bs = &VerifBS{Blockstore: bs}
-
 	bs = blockstore.NewIdStore(bs)
-	gcLocker := blockstore.NewGCLocker()
-	n.BlockStore = blockstore.NewGCBlockstore(bs, gcLocker)
+	n.BlockStore = bs
 
 	grace, err := time.ParseDuration(n.GracePeriod)
 	if err != nil {
